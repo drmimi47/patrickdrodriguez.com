@@ -1,0 +1,13 @@
+body {
+    font-family: Helvetica, sans-serif, sans-serif;
+    margin: 40px;
+    background: #fff;
+    color: #222;
+}
+h1 {
+    font-size: 2em;
+    margin-bottom: 0.5em;
+}
+p {
+    font-size: 1.1em;
+}
