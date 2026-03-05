@@ -44,6 +44,25 @@ a, button, input, select {
 	pointer-events: auto;
 }
 
+#help-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	align-items: center;
+	justify-content: center;
+	backdrop-filter: blur( 10px );
+	-webkit-backdrop-filter: blur( 10px );
+	pointer-events: none;
+}
+
+#help-overlay span {
+	color: #ffffff;
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 18px;
+	letter-spacing: 0.08em;
+}
+
 #overlay {
 	position: absolute;
 	font-size: 16px;

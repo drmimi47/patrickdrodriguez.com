@@ -26,6 +26,7 @@ const batchedMaterials = [];
 const position = new THREE.Vector3();
 const quaternion = new THREE.Quaternion();
 const MAX_TILE_SIZE = 4;
+const MAX_TEXTURE_SIZE = 512; // cap texture resolution to reduce GPU memory; lower = faster but more pixelated
 const meshScales = [];
 const matrix = new THREE.Matrix4();
 const euler = new THREE.Euler( - Math.PI / 2, 0, 0 );
@@ -38,6 +39,7 @@ const velocity = new THREE.Vector3();
 const _forward = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _move = new THREE.Vector3();
+const _scrollPan = new THREE.Vector3();
 
 let wasMoving = false;
 let introActive = true;
@@ -88,7 +90,25 @@ async function init() {
 
 	controls = new MapControls( camera, renderer.domElement );
 	controls.maxPolarAngle = Math.PI / 2;
+	controls.enableRotate = false;
+	controls.enableZoom = false;
 	controls.enabled = false;
+
+	window.addEventListener( 'wheel', e => {
+
+		if ( introActive ) return;
+		camera.getWorldDirection( _scrollPan );
+		_scrollPan.y = 0;
+		_scrollPan.normalize();
+		const scrollSpeed = Math.max( 0.5, camera.position.y * 0.05 );
+		_right.crossVectors( _scrollPan, camera.up ).normalize();
+		_scrollPan.multiplyScalar( - ( e.deltaY / 30 ) * scrollSpeed );
+		_scrollPan.addScaledVector( _right, ( e.deltaX / 30 ) * scrollSpeed );
+		camera.position.add( _scrollPan );
+		controls.target.add( _scrollPan );
+		controls.update();
+
+	}, { passive: true } );
 
 	const imagePaths = await discoverImages();
 	instancesPerMesh = Math.ceil( instancesCount / imagePaths.length );
@@ -120,6 +140,26 @@ async function init() {
 
 			// fallback to a solid colour if the image is missing
 			console.warn( `Could not load ${ imagePaths[ i ] }`, e );
+
+		}
+
+		// downscale texture to MAX_TEXTURE_SIZE to save GPU memory
+		if ( texture ) {
+
+			const img = texture.image;
+			const scale = Math.min( 1, MAX_TEXTURE_SIZE / Math.max( img.width, img.height ) );
+			if ( scale < 1 ) {
+
+				const tCanvas = document.createElement( 'canvas' );
+				tCanvas.width = Math.round( img.width * scale );
+				tCanvas.height = Math.round( img.height * scale );
+				tCanvas.getContext( '2d' ).drawImage( img, 0, 0, tCanvas.width, tCanvas.height );
+				texture.dispose();
+				texture = new THREE.CanvasTexture( tCanvas );
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+			}
 
 		}
 
@@ -197,6 +237,27 @@ async function init() {
 	document.addEventListener( 'keydown', e => { keys[ e.code ] = true; } );
 	document.addEventListener( 'keyup', e => { keys[ e.code ] = false; } );
 	window.addEventListener( 'resize', onWindowResize );
+
+	let clickCount = 0;
+	let helpTimeout = null;
+	const helpOverlay = document.getElementById( 'help-overlay' );
+	window.addEventListener( 'click', () => {
+
+		clickCount ++;
+		if ( clickCount === 3 ) {
+
+			helpOverlay.style.display = 'flex';
+			clearTimeout( helpTimeout );
+			helpTimeout = setTimeout( () => {
+
+				helpOverlay.style.display = 'none';
+				clickCount = 0;
+
+			}, 3000 );
+
+		}
+
+	} );
 	onWindowResize();
 
 	renderer.setAnimationLoop( animate );
